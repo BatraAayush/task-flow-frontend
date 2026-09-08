@@ -182,6 +182,51 @@ export const addCommentApi = createAsyncThunk(
   },
 );
 
+// src/store/slices/taskSlice.ts
+
+export const updateCommentApi = createAsyncThunk(
+  "tasks/updateComment",
+  async (
+    {
+      taskId,
+      commentId,
+      content,
+    }: { taskId: string; commentId: string; content: string },
+    { rejectWithValue },
+  ) => {
+    try {
+      const response = await api.patch<ApiResponse<IComment>>(
+        `/tasks/${taskId}/comments/${commentId}`,
+        { content },
+      );
+      return response.data.data;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to update comment",
+      );
+    }
+  },
+);
+
+export const deleteCommentApi = createAsyncThunk(
+  "tasks/deleteComment",
+  async (
+    { taskId, commentId }: { taskId: string; commentId: string },
+    { rejectWithValue },
+  ) => {
+    try {
+      const response = await api.delete<
+        ApiResponse<{ commentId: string; task: ITask }>
+      >(`/tasks/${taskId}/comments/${commentId}`);
+      return response.data.data;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to delete comment",
+      );
+    }
+  },
+);
+
 const taskSlice = createSlice({
   name: "tasks",
   initialState,
@@ -301,6 +346,57 @@ const taskSlice = createSlice({
         if (taskIndex !== -1) {
           state.tasks[taskIndex] = updatedTask;
         }
+      }
+    });
+
+    builder.addCase(updateCommentApi.fulfilled, (state, action) => {
+      const payload: any = action.payload;
+      const updatedComment = payload?.comment || payload;
+      const updatedTask = payload?.task;
+
+      if (updatedComment?._id) {
+        const index = state.comments.findIndex(
+          (c) => c._id === updatedComment._id,
+        );
+        if (index !== -1) {
+          state.comments[index] = updatedComment;
+        }
+      }
+
+      if (updatedTask?._id) {
+        const taskIndex = state.tasks.findIndex(
+          (t) => t._id === updatedTask._id,
+        );
+        if (taskIndex !== -1) {
+          state.tasks[taskIndex] = updatedTask;
+        }
+      }
+    });
+
+    builder.addCase(deleteCommentApi.fulfilled, (state, action) => {
+      const payload: any = action.payload;
+      const deletedId = payload?.commentId || payload;
+      const updatedTask = payload?.task;
+
+      state.comments = state.comments.filter((c) => c._id !== deletedId);
+
+      if (updatedTask?._id) {
+        const taskIndex = state.tasks.findIndex(
+          (t) => t._id === updatedTask._id,
+        );
+        if (taskIndex !== -1) {
+          state.tasks[taskIndex] = updatedTask;
+        }
+      }
+    });
+
+    builder.addCase(updateTaskStatusApi.fulfilled, (state, action) => {
+      const updatedTask = action.payload;
+      if (!updatedTask?._id) return;
+
+      const index = state.tasks.findIndex((t) => t._id === updatedTask._id);
+      if (index !== -1) {
+        state.tasks[index] = updatedTask;
       }
     });
   },

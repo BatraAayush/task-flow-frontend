@@ -1,7 +1,6 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { type ApiResponse, type IBoard, type IProject } from "../../types";
 import api from "../../api/axiosInstance";
-import { act } from "react";
 
 interface ProjectState {
   projects: IProject[];

@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { KanbanSquare, Loader2, Lock, Mail } from "lucide-react";
+import { Loader2, Lock, Mail } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "../store";
 import { loginUser } from "../store/slices/authSlice";
 
 export const Login: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const { isAuthenticated, isLoading, error } = useAppSelector(
-    (state) => state.auth,
-  );
+  const { isAuthenticated, isLoading } = useAppSelector((state) => state.auth);
 
   const [formData, setFormData] = useState({
     email: "",

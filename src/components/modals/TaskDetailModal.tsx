@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import {
+  Check,
   Clock,
   History,
   Loader2,
   MessageSquare,
+  Pencil,
   Send,
   Trash2,
   X,
@@ -15,6 +17,8 @@ import {
   deleteTaskApi,
   fetchTaskComments,
   addCommentApi,
+  updateCommentApi,
+  deleteCommentApi,
 } from "../../store/slices/taskSlice";
 import type { TaskPriority } from "../../types";
 
@@ -35,6 +39,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     (state) => state.tasks,
   );
   const { currentProject } = useAppSelector((state) => state.projects);
+  const { user: currentUser } = useAppSelector((state) => state.auth);
 
   const [activeTab, setActiveTab] = useState<"comments" | "activity">(
     "comments",
@@ -42,6 +47,11 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const [commentInput, setCommentInput] = useState("");
   const [isPostingComment, setIsPostingComment] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Comment edit state
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [isUpdatingComment, setIsUpdatingComment] = useState(false);
 
   // Editable fields
   const [title, setTitle] = useState(task?.title || "");
@@ -64,6 +74,12 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
   if (!task) return null;
 
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget && !isDeleting && !isPostingComment && !isUpdatingComment) {
+      onClose();
+    }
+  };
+
   const handleUpdate = async (fieldUpdate: Record<string, any>) => {
     try {
       await dispatch(
@@ -73,7 +89,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         }),
       ).unwrap();
       toast.success("Task updated");
-    } catch (err: any) {
+    } catch {
       toast.error("Failed to update task");
     }
   };
@@ -89,10 +105,44 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       ).unwrap();
       setCommentInput("");
       toast.success("Comment posted");
-    } catch (err: any) {
+    } catch {
       toast.error("Failed to post comment");
     } finally {
       setIsPostingComment(false);
+    }
+  };
+
+  const handleStartEdit = (commentId: string, currentContent: string) => {
+    setEditingCommentId(commentId);
+    setEditContent(currentContent);
+  };
+
+  const handleSaveEdit = async (commentId: string) => {
+    if (!editContent.trim()) {
+      toast.error("Comment cannot be empty");
+      return;
+    }
+
+    try {
+      setIsUpdatingComment(true);
+      await dispatch(
+        updateCommentApi({ taskId, commentId, content: editContent.trim() }),
+      ).unwrap();
+      toast.success("Comment updated");
+      setEditingCommentId(null);
+    } catch {
+      toast.error("Failed to update comment");
+    } finally {
+      setIsUpdatingComment(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    try {
+      await dispatch(deleteCommentApi({ taskId, commentId })).unwrap();
+      toast.success("Comment deleted");
+    } catch {
+      toast.error("Failed to delete comment");
     }
   };
 
@@ -103,16 +153,36 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       await dispatch(deleteTaskApi(taskId)).unwrap();
       toast.success("Task deleted");
       onClose();
-    } catch (err: any) {
+    } catch {
       toast.error("Failed to delete task");
     } finally {
       setIsDeleting(false);
     }
   };
 
+  const formatCommentTime = (dateStr?: string | Date) => {
+    if (!dateStr) return "Just now";
+    const date = new Date(dateStr);
+    return isNaN(date.getTime())
+      ? "Just now"
+      : date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+
+  const formatActivityTime = (dateStr?: string | Date) => {
+    if (!dateStr) return "Just now";
+    const date = new Date(dateStr);
+    return isNaN(date.getTime()) ? "Just now" : date.toLocaleString();
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+    <div
+      onClick={handleBackdropClick}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200 cursor-pointer"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden cursor-default"
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-slate-800 bg-slate-900/80">
           <div className="flex items-center gap-3">
@@ -208,9 +278,11 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 onChange={(e) => {
                   const val = e.target.value;
                   setDueDate(val);
-                  handleUpdate({ dueDate: val || null });
+                  handleUpdate({
+                    dueDate: val ? new Date(val).toISOString() : null,
+                  });
                 }}
-                className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-white focus:outline-none"
+                className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-white focus:outline-none [color-scheme:dark]"
               />
             </div>
           </div>
@@ -233,7 +305,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             />
           </div>
 
-          {/* Tab Navigation: Comments & Activity Log */}
+          {/* Tabs: Comments & Activity History */}
           <div className="pt-2 border-t border-slate-800">
             <div className="flex items-center gap-4 mb-4">
               <button
@@ -297,30 +369,102 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                       No comments yet. Start the discussion!
                     </div>
                   ) : (
-                    comments.map((comment) => (
-                      <div
-                        key={comment._id}
-                        className="p-3 bg-slate-950/60 border border-slate-800/80 rounded-xl"
-                      >
-                        <div className="flex items-center justify-between gap-2 mb-1.5">
-                          <span className="text-xs font-semibold text-slate-200">
-                            {comment.author?.name || "Member"}
-                          </span>
-                          <span className="text-[10px] text-slate-500">
-                            {new Date(comment.createdAt).toLocaleTimeString(
-                              [],
-                              {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              },
-                            )}
-                          </span>
+                    comments.map((comment: any) => {
+                      const c = comment.comment || comment;
+                      const commentId = c._id;
+                      const authorId =
+                        typeof c.author === "object" ? c.author?._id : c.author;
+                      const isAuthor = authorId === currentUser?._id;
+                      const isEditing = editingCommentId === commentId;
+                      const authorName =
+                        typeof c.author === "object" && c.author?.name
+                          ? c.author.name
+                          : isAuthor
+                            ? currentUser?.name
+                            : "Member";
+
+                      return (
+                        <div
+                          key={commentId || Math.random()}
+                          className="p-3 bg-slate-950/60 border border-slate-800/80 rounded-xl group transition-all"
+                        >
+                          <div className="flex items-center justify-between gap-2 mb-1.5">
+                            <span className="text-xs font-semibold text-slate-200">
+                              {authorName}
+                            </span>
+
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-slate-500">
+                                {formatCommentTime(c.createdAt)}
+                              </span>
+
+                              {isAuthor && !isEditing && (
+                                <div className="flex items-center gap-1 transition-opacity">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleStartEdit(commentId, c.content)
+                                    }
+                                    className="p-1 hover:bg-slate-800 text-slate-400 hover:text-indigo-400 rounded transition-colors"
+                                    title="Edit comment"
+                                  >
+                                    <Pencil className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleDeleteComment(commentId)
+                                    }
+                                    className="p-1 hover:bg-slate-800 text-slate-400 hover:text-rose-400 rounded transition-colors"
+                                    title="Delete comment"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {isEditing ? (
+                            <div className="mt-2 space-y-2">
+                              <textarea
+                                value={editContent}
+                                onChange={(e) => setEditContent(e.target.value)}
+                                rows={2}
+                                className="w-full px-2.5 py-1.5 bg-slate-900 border border-indigo-500/50 rounded-lg text-xs text-white focus:outline-none resize-none"
+                              />
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingCommentId(null)}
+                                  disabled={isUpdatingComment}
+                                  className="px-2 py-1 text-[11px] text-slate-400 hover:text-white rounded transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSaveEdit(commentId)}
+                                  disabled={isUpdatingComment}
+                                  className="flex items-center gap-1 px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[11px] font-semibold transition-all disabled:opacity-50"
+                                >
+                                  {isUpdatingComment ? (
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                  ) : (
+                                    <Check className="w-3 h-3" />
+                                  )}
+                                  <span>Save</span>
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-slate-300 whitespace-pre-wrap">
+                              {c.content}
+                            </p>
+                          )}
                         </div>
-                        <p className="text-xs text-slate-300">
-                          {comment.content}
-                        </p>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>
@@ -328,20 +472,24 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               /* Activity History Tab Pane */
               <div className="space-y-2.5">
                 {task.activityLogs && task.activityLogs.length > 0 ? (
-                  task.activityLogs.map((log, index) => (
-                    <div
-                      key={index}
-                      className="flex items-start gap-2.5 text-xs text-slate-400 py-1.5 border-l-2 border-slate-800 pl-3 ml-1.5"
-                    >
-                      <Clock className="w-3.5 h-3.5 text-slate-500 mt-0.5" />
-                      <div>
-                        <p className="text-slate-300">{log.action}</p>
-                        <span className="text-[10px] text-slate-500">
-                          {new Date(log.timestamp).toLocaleString()}
-                        </span>
+                  [...task.activityLogs]
+                    .reverse()
+                    .map((log: any, index: number) => (
+                      <div
+                        key={log._id || index}
+                        className="flex items-start gap-2.5 text-xs text-slate-400 py-1.5 border-l-2 border-indigo-500/30 pl-3 ml-1.5"
+                      >
+                        <Clock className="w-3.5 h-3.5 text-slate-500 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-slate-300">
+                            {log.action || log.message}
+                          </p>
+                          <span className="text-[10px] text-slate-500">
+                            {formatActivityTime(log.timestamp || log.createdAt)}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    ))
                 ) : (
                   <div className="py-4 text-center text-xs text-slate-500 italic">
                     No activity recorded yet.

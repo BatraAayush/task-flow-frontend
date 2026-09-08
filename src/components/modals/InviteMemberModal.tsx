@@ -33,11 +33,9 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
   const [role, setRole] = useState<Role>("member");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Platform users list
   const [allUsers, setAllUsers] = useState<IUser[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 
-  // Fetch registered users on modal open
   useEffect(() => {
     const loadPlatformUsers = async () => {
       if (!isOpen) return;
@@ -45,7 +43,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
         setIsLoadingUsers(true);
         const response = await api.get<ApiResponse<IUser[]>>("/users");
         setAllUsers(response.data.data || []);
-      } catch (err) {
+      } catch {
         setAllUsers([]);
       } finally {
         setIsLoadingUsers(false);
@@ -56,6 +54,12 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
   }, [isOpen]);
 
   if (!isOpen) return null;
+
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget && !isSubmitting) {
+      onClose();
+    }
+  };
 
   const currentMembers = currentProject?.members || [];
   const currentMemberIds = new Set(
@@ -68,7 +72,6 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
       ? currentProject?.owner?._id
       : currentProject?.owner;
 
-  // Filter out users who are already part of this project or the owner
   const availableUsersToInvite = allUsers.filter(
     (u) => !currentMemberIds.has(u._id) && u._id !== ownerId,
   );
@@ -99,8 +102,14 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-6 shadow-2xl relative max-h-[90vh] flex flex-col">
+    <div
+      onClick={handleBackdropClick}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200 cursor-pointer"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-6 shadow-2xl relative max-h-[90vh] flex flex-col cursor-default"
+      >
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-800">
           <div className="flex items-center gap-2 text-white font-semibold">
@@ -119,7 +128,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
         </div>
 
         <div className="overflow-y-auto flex-1 space-y-5 pt-5 pr-1">
-          {/* Pure Selection Invite Form */}
+          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2 flex items-center gap-1.5">
@@ -181,7 +190,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
             </div>
           </form>
 
-          {/* Current Project Members Section */}
+          {/* Members List */}
           <div>
             <div className="flex items-center justify-between pb-2 border-b border-slate-800/80 mb-3">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">

@@ -8,9 +8,7 @@ import { registerUser } from "../store/slices/authSlice";
 export const Register: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const { isAuthenticated, isLoading, error } = useAppSelector(
-    (state) => state.auth,
-  );
+  const { isAuthenticated, isLoading } = useAppSelector((state) => state.auth);
 
   const [formData, setFormData] = useState({
     name: "",

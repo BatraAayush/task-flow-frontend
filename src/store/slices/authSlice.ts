@@ -164,7 +164,7 @@ const authSlice = createSlice({
         state.accessToken = action.payload.accessToken;
         // setApiAccessToken(action.payload.accessToken);
       })
-      .addCase(checkAuthSession.rejected, (state, action) => {
+      .addCase(checkAuthSession.rejected, (state) => {
         state.isInitialAuthChecking = false;
         state.isAuthenticated = false;
         state.user = null;
