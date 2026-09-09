@@ -207,27 +207,27 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
               ) : (
                 currentMembers.map((member) => {
                   const isProjectOwner =
-                    member.user._id === ownerId || member.role === "owner";
+                    member?.user?._id === ownerId || member?.role === "owner";
 
                   return (
                     <div
-                      key={member.user._id}
+                      key={member?.user?._id}
                       className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-bold shrink-0">
-                          {member.user.name ? (
-                            member.user.name.charAt(0).toUpperCase()
+                          {member?.user?.name ? (
+                            member?.user?.name?.charAt(0)?.toUpperCase()
                           ) : (
                             <User className="w-4 h-4" />
                           )}
                         </div>
                         <div className="truncate">
                           <p className="text-xs font-medium text-slate-200 truncate">
-                            {member.user.name}
+                            {member?.user?.name ?? "NA"}
                           </p>
                           <p className="text-[11px] text-slate-500 truncate">
-                            {member.user.email}
+                            {member?.user?.email ?? "NA"}
                           </p>
                         </div>
                       </div>
@@ -241,12 +241,12 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
                         ) : (
                           <span
                             className={`inline-flex items-center text-[10px] font-semibold uppercase px-2 py-0.5 rounded-md border ${
-                              member.role === "admin"
+                              member?.role === "admin"
                                 ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
                                 : "bg-slate-800/80 text-slate-400 border-slate-700"
                             }`}
                           >
-                            {member.role}
+                            {member?.role}
                           </span>
                         )}
                       </div>

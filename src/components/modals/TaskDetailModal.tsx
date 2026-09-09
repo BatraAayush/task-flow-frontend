@@ -21,6 +21,7 @@ import {
   deleteCommentApi,
 } from "../../store/slices/taskSlice";
 import type { TaskPriority } from "../../types";
+import { ConfirmModal } from "../modals/ConfirmModal";
 
 interface TaskDetailModalProps {
   taskId: string;
@@ -46,6 +47,9 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   );
   const [commentInput, setCommentInput] = useState("");
   const [isPostingComment, setIsPostingComment] = useState(false);
+  
+  // Task delete confirmation modal state
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Comment edit state
@@ -75,7 +79,13 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   if (!task) return null;
 
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget && !isDeleting && !isPostingComment && !isUpdatingComment) {
+    if (
+      e.target === e.currentTarget &&
+      !isDeleting &&
+      !isPostingComment &&
+      !isUpdatingComment &&
+      !isDeleteModalOpen
+    ) {
       onClose();
     }
   };
@@ -146,12 +156,12 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     }
   };
 
-  const handleDeleteTask = async () => {
-    if (!window.confirm("Are you sure you want to delete this task?")) return;
+  const handleConfirmDeleteTask = async () => {
     try {
       setIsDeleting(true);
       await dispatch(deleteTaskApi(taskId)).unwrap();
       toast.success("Task deleted");
+      setIsDeleteModalOpen(false);
       onClose();
     } catch {
       toast.error("Failed to delete task");
@@ -175,331 +185,348 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   };
 
   return (
-    <div
-      onClick={handleBackdropClick}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200 cursor-pointer"
-    >
+    <>
       <div
-        onClick={(e) => e.stopPropagation()}
-        className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden cursor-default"
+        onClick={handleBackdropClick}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200 cursor-pointer"
       >
-        {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-800 bg-slate-900/80">
-          <div className="flex items-center gap-3">
-            <span className="text-xs uppercase font-bold tracking-wider px-2.5 py-1 bg-slate-800 rounded-md text-slate-300">
-              {task.status.replace("_", " ")}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleDeleteTask}
-              disabled={isDeleting}
-              className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
-              title="Delete Task"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-            <button
-              onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Title Edit */}
-          <div>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              onBlur={() => {
-                if (title !== task.title) handleUpdate({ title });
-              }}
-              className="text-lg font-bold text-white bg-transparent border-b border-transparent hover:border-slate-700 focus:border-indigo-500 focus:outline-none w-full pb-1 transition-all"
-            />
-          </div>
-
-          {/* Properties Meta Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 bg-slate-950/60 border border-slate-800/80 rounded-xl">
-            <div>
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
-                Priority
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden cursor-default"
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between p-5 border-b border-slate-800 bg-slate-900/80">
+            <div className="flex items-center gap-3">
+              <span className="text-xs uppercase font-bold tracking-wider px-2.5 py-1 bg-slate-800 rounded-md text-slate-300">
+                {task.status.replace("_", " ")}
               </span>
-              <select
-                value={priority}
-                onChange={(e) => {
-                  const val = e.target.value as TaskPriority;
-                  setPriority(val);
-                  handleUpdate({ priority: val });
-                }}
-                className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-white focus:outline-none"
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="urgent">Urgent</option>
-              </select>
             </div>
 
-            <div>
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
-                Assignee
-              </span>
-              <select
-                value={assignedTo}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setAssignedTo(val);
-                  handleUpdate({ assignedTo: val || null });
-                }}
-                className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-white focus:outline-none"
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsDeleteModalOpen(true)}
+                className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+                title="Delete Task"
               >
-                <option value="">Unassigned</option>
-                {currentProject?.members?.map((m) => (
-                  <option key={m.user._id} value={m.user._id}>
-                    {m.user.name}
-                  </option>
-                ))}
-              </select>
+                <Trash2 className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
+          </div>
 
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            {/* Title Edit */}
             <div>
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
-                Due Date
-              </span>
               <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setDueDate(val);
-                  handleUpdate({
-                    dueDate: val ? new Date(val).toISOString() : null,
-                  });
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                onBlur={() => {
+                  if (title !== task.title) handleUpdate({ title });
                 }}
-                className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-white focus:outline-none [color-scheme:dark]"
+                className="text-lg font-bold text-white bg-transparent border-b border-transparent hover:border-slate-700 focus:border-indigo-500 focus:outline-none w-full pb-1 transition-all"
               />
             </div>
-          </div>
 
-          {/* Description */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-              Description
-            </label>
-            <textarea
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              onBlur={() => {
-                if (description !== task.description)
-                  handleUpdate({ description });
-              }}
-              placeholder="Add description..."
-              className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none transition-all"
-            />
-          </div>
+            {/* Properties Meta Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 bg-slate-950/60 border border-slate-800/80 rounded-xl">
+              <div>
+                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+                  Priority
+                </span>
+                <select
+                  value={priority}
+                  onChange={(e) => {
+                    const val = e.target.value as TaskPriority;
+                    setPriority(val);
+                    handleUpdate({ priority: val });
+                  }}
+                  className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-white focus:outline-none cursor-pointer"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </div>
 
-          {/* Tabs: Comments & Activity History */}
-          <div className="pt-2 border-t border-slate-800">
-            <div className="flex items-center gap-4 mb-4">
-              <button
-                type="button"
-                onClick={() => setActiveTab("comments")}
-                className={`flex items-center gap-1.5 pb-2 text-xs font-semibold border-b-2 transition-colors ${
-                  activeTab === "comments"
-                    ? "border-indigo-500 text-indigo-400"
-                    : "border-transparent text-slate-400 hover:text-slate-300"
-                }`}
-              >
-                <MessageSquare className="w-3.5 h-3.5" />
-                <span>Comments ({comments.length})</span>
-              </button>
+              <div>
+                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+                  Assignee
+                </span>
+                <select
+                  value={assignedTo}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setAssignedTo(val);
+                    handleUpdate({ assignedTo: val || null });
+                  }}
+                  className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-white focus:outline-none cursor-pointer"
+                >
+                  <option value="">Unassigned</option>
+                  {currentProject?.members
+                    ?.filter((m) => Boolean(m?.user?._id))
+                    .map((m) => (
+                      <option key={m.user._id} value={m.user._id}>
+                        {m.user.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
 
-              <button
-                type="button"
-                onClick={() => setActiveTab("activity")}
-                className={`flex items-center gap-1.5 pb-2 text-xs font-semibold border-b-2 transition-colors ${
-                  activeTab === "activity"
-                    ? "border-indigo-500 text-indigo-400"
-                    : "border-transparent text-slate-400 hover:text-slate-300"
-                }`}
-              >
-                <History className="w-3.5 h-3.5" />
-                <span>Activity History ({task.activityLogs?.length || 0})</span>
-              </button>
+              <div>
+                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+                  Due Date
+                </span>
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setDueDate(val);
+                    handleUpdate({
+                      dueDate: val ? new Date(val).toISOString() : null,
+                    });
+                  }}
+                  className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-white focus:outline-none [color-scheme:dark] cursor-pointer"
+                />
+              </div>
             </div>
 
-            {/* Comments Tab Pane */}
-            {activeTab === "comments" ? (
-              <div className="space-y-4">
-                <form onSubmit={handleCommentSubmit} className="flex gap-2">
-                  <input
-                    type="text"
-                    value={commentInput}
-                    onChange={(e) => setCommentInput(e.target.value)}
-                    placeholder="Write a comment..."
-                    className="flex-1 px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  />
-                  <button
-                    type="submit"
-                    disabled={isPostingComment || !commentInput.trim()}
-                    className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all"
-                  >
-                    {isPostingComment ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            {/* Description */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                Description
+              </label>
+              <textarea
+                rows={3}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                onBlur={() => {
+                  if (description !== task.description)
+                    handleUpdate({ description });
+                }}
+                placeholder="Add description..."
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none transition-all"
+              />
+            </div>
+
+            {/* Tabs: Comments & Activity History */}
+            <div className="pt-2 border-t border-slate-800">
+              <div className="flex items-center gap-4 mb-4">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("comments")}
+                  className={`flex items-center gap-1.5 pb-2 text-xs font-semibold border-b-2 transition-colors cursor-pointer ${
+                    activeTab === "comments"
+                      ? "border-indigo-500 text-indigo-400"
+                      : "border-transparent text-slate-400 hover:text-slate-300"
+                  }`}
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>Comments ({comments.length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("activity")}
+                  className={`flex items-center gap-1.5 pb-2 text-xs font-semibold border-b-2 transition-colors cursor-pointer ${
+                    activeTab === "activity"
+                      ? "border-indigo-500 text-indigo-400"
+                      : "border-transparent text-slate-400 hover:text-slate-300"
+                  }`}
+                >
+                  <History className="w-3.5 h-3.5" />
+                  <span>Activity History ({task.activityLogs?.length || 0})</span>
+                </button>
+              </div>
+
+              {/* Comments Tab Pane */}
+              {activeTab === "comments" ? (
+                <div className="space-y-4">
+                  <form onSubmit={handleCommentSubmit} className="flex gap-2">
+                    <input
+                      type="text"
+                      value={commentInput}
+                      onChange={(e) => setCommentInput(e.target.value)}
+                      placeholder="Write a comment..."
+                      className="flex-1 px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isPostingComment || !commentInput.trim()}
+                      className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      {isPostingComment ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Send className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                  </form>
+
+                  <div className="space-y-3 pt-2">
+                    {isCommentsLoading ? (
+                      <div className="py-4 text-center text-xs text-slate-500">
+                        Loading comments...
+                      </div>
+                    ) : comments.length === 0 ? (
+                      <div className="py-4 text-center text-xs text-slate-500 italic">
+                        No comments yet. Start the discussion!
+                      </div>
                     ) : (
-                      <Send className="w-3.5 h-3.5" />
-                    )}
-                  </button>
-                </form>
+                      comments.map((comment: any) => {
+                        const c = comment.comment || comment;
+                        const commentId = c._id;
+                        const authorId =
+                          typeof c.author === "object" ? c.author?._id : c.author;
+                        const isAuthor = authorId === currentUser?._id;
+                        const isEditing = editingCommentId === commentId;
+                        const authorName =
+                          typeof c.author === "object" && c.author?.name
+                            ? c.author.name
+                            : isAuthor
+                              ? currentUser?.name
+                              : "Member";
 
-                <div className="space-y-3 pt-2">
-                  {isCommentsLoading ? (
-                    <div className="py-4 text-center text-xs text-slate-500">
-                      Loading comments...
-                    </div>
-                  ) : comments.length === 0 ? (
-                    <div className="py-4 text-center text-xs text-slate-500 italic">
-                      No comments yet. Start the discussion!
-                    </div>
-                  ) : (
-                    comments.map((comment: any) => {
-                      const c = comment.comment || comment;
-                      const commentId = c._id;
-                      const authorId =
-                        typeof c.author === "object" ? c.author?._id : c.author;
-                      const isAuthor = authorId === currentUser?._id;
-                      const isEditing = editingCommentId === commentId;
-                      const authorName =
-                        typeof c.author === "object" && c.author?.name
-                          ? c.author.name
-                          : isAuthor
-                            ? currentUser?.name
-                            : "Member";
-
-                      return (
-                        <div
-                          key={commentId || Math.random()}
-                          className="p-3 bg-slate-950/60 border border-slate-800/80 rounded-xl group transition-all"
-                        >
-                          <div className="flex items-center justify-between gap-2 mb-1.5">
-                            <span className="text-xs font-semibold text-slate-200">
-                              {authorName}
-                            </span>
-
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] text-slate-500">
-                                {formatCommentTime(c.createdAt)}
+                        return (
+                          <div
+                            key={commentId || Math.random()}
+                            className="p-3 bg-slate-950/60 border border-slate-800/80 rounded-xl group transition-all"
+                          >
+                            <div className="flex items-center justify-between gap-2 mb-1.5">
+                              <span className="text-xs font-semibold text-slate-200">
+                                {authorName}
                               </span>
 
-                              {isAuthor && !isEditing && (
-                                <div className="flex items-center gap-1 transition-opacity">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleStartEdit(commentId, c.content)
-                                    }
-                                    className="p-1 hover:bg-slate-800 text-slate-400 hover:text-indigo-400 rounded transition-colors"
-                                    title="Edit comment"
-                                  >
-                                    <Pencil className="w-3 h-3" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleDeleteComment(commentId)
-                                    }
-                                    className="p-1 hover:bg-slate-800 text-slate-400 hover:text-rose-400 rounded transition-colors"
-                                    title="Delete comment"
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-slate-500">
+                                  {formatCommentTime(c.createdAt)}
+                                </span>
 
-                          {isEditing ? (
-                            <div className="mt-2 space-y-2">
-                              <textarea
-                                value={editContent}
-                                onChange={(e) => setEditContent(e.target.value)}
-                                rows={2}
-                                className="w-full px-2.5 py-1.5 bg-slate-900 border border-indigo-500/50 rounded-lg text-xs text-white focus:outline-none resize-none"
-                              />
-                              <div className="flex items-center justify-end gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => setEditingCommentId(null)}
-                                  disabled={isUpdatingComment}
-                                  className="px-2 py-1 text-[11px] text-slate-400 hover:text-white rounded transition-colors"
-                                >
-                                  Cancel
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleSaveEdit(commentId)}
-                                  disabled={isUpdatingComment}
-                                  className="flex items-center gap-1 px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[11px] font-semibold transition-all disabled:opacity-50"
-                                >
-                                  {isUpdatingComment ? (
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                  ) : (
-                                    <Check className="w-3 h-3" />
-                                  )}
-                                  <span>Save</span>
-                                </button>
+                                {isAuthor && !isEditing && (
+                                  <div className="flex items-center gap-1 transition-opacity">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleStartEdit(commentId, c.content)
+                                      }
+                                      className="p-1 hover:bg-slate-800 text-slate-400 hover:text-indigo-400 rounded transition-colors cursor-pointer"
+                                      title="Edit comment"
+                                    >
+                                      <Pencil className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleDeleteComment(commentId)
+                                      }
+                                      className="p-1 hover:bg-slate-800 text-slate-400 hover:text-rose-400 rounded transition-colors cursor-pointer"
+                                      title="Delete comment"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             </div>
-                          ) : (
-                            <p className="text-xs text-slate-300 whitespace-pre-wrap">
-                              {c.content}
+
+                            {isEditing ? (
+                              <div className="mt-2 space-y-2">
+                                <textarea
+                                  value={editContent}
+                                  onChange={(e) => setEditContent(e.target.value)}
+                                  rows={2}
+                                  className="w-full px-2.5 py-1.5 bg-slate-900 border border-indigo-500/50 rounded-lg text-xs text-white focus:outline-none resize-none"
+                                />
+                                <div className="flex items-center justify-end gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingCommentId(null)}
+                                    disabled={isUpdatingComment}
+                                    className="px-2 py-1 text-[11px] text-slate-400 hover:text-white rounded transition-colors cursor-pointer"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSaveEdit(commentId)}
+                                    disabled={isUpdatingComment}
+                                    className="flex items-center gap-1 px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[11px] font-semibold transition-all disabled:opacity-50 cursor-pointer"
+                                  >
+                                    {isUpdatingComment ? (
+                                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    ) : (
+                                      <Check className="w-3.5 h-3.5" />
+                                    )}
+                                    <span>Save</span>
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-xs text-slate-300 whitespace-pre-wrap">
+                                {c.content}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* Activity History Tab Pane */
+                <div className="space-y-2.5">
+                  {task.activityLogs && task.activityLogs.length > 0 ? (
+                    [...task.activityLogs]
+                      .reverse()
+                      .map((log: any, index: number) => (
+                        <div
+                          key={log._id || index}
+                          className="flex items-start gap-2.5 text-xs text-slate-400 py-1.5 border-l-2 border-indigo-500/30 pl-3 ml-1.5"
+                        >
+                          <Clock className="w-3.5 h-3.5 text-slate-500 mt-0.5 shrink-0" />
+                          <div>
+                            <p className="text-slate-300">
+                              {log.action || log.message}
                             </p>
-                          )}
+                            <span className="text-[10px] text-slate-500">
+                              {formatActivityTime(log.timestamp || log.createdAt)}
+                            </span>
+                          </div>
                         </div>
-                      );
-                    })
+                      ))
+                  ) : (
+                    <div className="py-4 text-center text-xs text-slate-500 italic">
+                      No activity recorded yet.
+                    </div>
                   )}
                 </div>
-              </div>
-            ) : (
-              /* Activity History Tab Pane */
-              <div className="space-y-2.5">
-                {task.activityLogs && task.activityLogs.length > 0 ? (
-                  [...task.activityLogs]
-                    .reverse()
-                    .map((log: any, index: number) => (
-                      <div
-                        key={log._id || index}
-                        className="flex items-start gap-2.5 text-xs text-slate-400 py-1.5 border-l-2 border-indigo-500/30 pl-3 ml-1.5"
-                      >
-                        <Clock className="w-3.5 h-3.5 text-slate-500 mt-0.5 shrink-0" />
-                        <div>
-                          <p className="text-slate-300">
-                            {log.action || log.message}
-                          </p>
-                          <span className="text-[10px] text-slate-500">
-                            {formatActivityTime(log.timestamp || log.createdAt)}
-                          </span>
-                        </div>
-                      </div>
-                    ))
-                ) : (
-                  <div className="py-4 text-center text-xs text-slate-500 italic">
-                    No activity recorded yet.
-                  </div>
-                )}
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Delete Task Confirmation Modal */}
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        title="Delete Task"
+        description="Are you sure you want to delete this task? All associated comments and activity logs will be permanently removed. This action cannot be undone."
+        confirmLabel="Delete Task"
+        variant="danger"
+        isLoading={isDeleting}
+        onConfirm={handleConfirmDeleteTask}
+        onClose={() => setIsDeleteModalOpen(false)}
+      />
+    </>
   );
 };

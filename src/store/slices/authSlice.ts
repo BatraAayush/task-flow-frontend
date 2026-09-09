@@ -80,7 +80,11 @@ export const checkAuthSession = createAsyncThunk(
       const { accessToken } = refreshRes.data.data;
       setApiAccessToken(accessToken);
 
-      const userRes = await api.get<ApiResponse<IUser>>("/auth/me");
+      const userRes = await api.get<ApiResponse<IUser>>("/auth/me", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
       return { user: userRes.data.data, accessToken };
     } catch (err: any) {
       return rejectWithValue(err.response?.data?.message || "Logout failed");

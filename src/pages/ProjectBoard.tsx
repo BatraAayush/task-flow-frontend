@@ -33,8 +33,8 @@ import { CreateTaskModal } from "../components/modals/CreateTaskModal";
 import { TaskDetailModal } from "../components/modals/TaskDetailModal";
 import { InviteMemberModal } from "../components/modals/InviteMemberModal";
 import { EditProjectModal } from "../components/modals/EditProjectModal";
-import { ConfirmDeleteModal } from "../components/modals/ConfirmDeleteModal";
 import type { TaskStatus } from "../types";
+import { ConfirmModal } from "../components/modals/ConfirmModal";
 
 export const ProjectBoard: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -233,7 +233,7 @@ export const ProjectBoard: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-6rem)]">
+    <div className="flex flex-col h-full">
       {/* Top Header Bar */}
       <div className="flex flex-col gap-4 pb-4 border-b border-slate-800">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -262,7 +262,7 @@ export const ProjectBoard: React.FC = () => {
           </div>
 
           {/* Primary Action Buttons */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {/* Invite Member */}
             {canInvite && (
               <button
@@ -357,8 +357,8 @@ export const ProjectBoard: React.FC = () => {
             <option value="">All Assignees</option>
             <option value="unassigned">Unassigned</option>
             {currentProject?.members?.map((m) => (
-              <option key={m.user._id} value={m.user._id}>
-                {m.user.name} ({m.role})
+              <option key={m?.user?._id} value={m?.user?._id}>
+                {m?.user?.name ?? "NA"} ({m?.role ?? "NA"})
               </option>
             ))}
           </select>
@@ -433,14 +433,16 @@ export const ProjectBoard: React.FC = () => {
       )}
 
       {/* Custom Confirmation Modal for Delete Project */}
-      <ConfirmDeleteModal
+
+      <ConfirmModal
         isOpen={isDeleteModalOpen}
         title="Delete Workspace"
-        message="Are you sure you want to delete this project? All associated boards, tasks, and discussion comments will be permanently erased. This action cannot be undone."
-        confirmText="Delete Project"
-        isDeleting={isDeletingProject}
-        onClose={() => setIsDeleteModalOpen(false)}
+        description="Are you sure you want to delete this project? All associated boards, tasks, and discussion comments will be permanently erased. This action cannot be undone."
+        confirmLabel="Delete Project"
+        variant="danger"
+        isLoading={isDeletingProject}
         onConfirm={handleConfirmDelete}
+        onClose={() => setIsDeleteModalOpen(false)}
       />
     </div>
   );
